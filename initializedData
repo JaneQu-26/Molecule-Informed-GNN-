@@ -1,0 +1,155 @@
+
+
+import csv, numpy as np
+# from google.colab import files
+from rdkit import Chem
+
+# uploaded = files.upload()
+# path = list(uploaded)[0]
+path = "C:\\Users\\janez\\OneDrive\\Desktop\\N\\Class\\B_lactamase.csv"  #switched to specific loaded file
+
+elements = ["C", "N", "O", "S", "F", "Cl", "Br", "P"]
+
+def atom_features(atom):
+    # one-hot for the element, then a few chemical properties
+    symbol = atom.GetSymbol()
+    onehot = [float(symbol == e) for e in elements] + [float(symbol not in elements)]
+    return onehot + [atom.GetDegree() / 4, float(atom.GetIsAromatic()),
+                     float(atom.IsInRing()), float(atom.GetFormalCharge()),
+                     atom.GetTotalNumHs() / 4]
+
+def smiles_to_graph(smiles):
+    # a = who is bonded to whom, x = one row of features per atom
+    mol = Chem.MolFromSmiles(smiles)
+    if mol is None:
+        return None
+    n = mol.GetNumAtoms()
+    a = np.zeros((n, n))
+    for bond in mol.GetBonds():
+        i, j = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
+        a[i, j] = a[j, i] = 1
+    x = np.array([atom_features(atom) for atom in mol.GetAtoms()])
+    return a, x
+
+graphs, labels, smiles_list = [], [], []
+for row in csv.DictReader(open(path)):
+    graph = smiles_to_graph(row["smiles"])
+    if graph is not None:
+        graphs.append(graph)
+        labels.append(int(row["label"]))
+        smiles_list.append(row["smiles"])
+labels = np.array(labels)
+
+sizes = [len(x) for _, x in graphs]
+print(len(graphs), "molecules,", labels.sum(), "active,", len(labels) - labels.sum(), "inactive")
+print("majority baseline:", round(max(labels.mean(), 1 - labels.mean()), 3))
+print("atoms per molecule: median", int(np.median(sizes)), " max", max(sizes))
+
+a, x = graphs[0]
+# print(a)
+# print("\nexample:", smiles_list[0])
+# print("  a is", a.shape, "->", int(a.sum() // 2), "bonds")
+# print("  x is", x.shape, "-> one row per atom, 14 features each")
+# Chem.MolFromSmiles(smiles_list[0])   # Colab draws it
+
+
+
+import numpy as np
+import pygame
+from rdkit import Chem
+from rdkit.Chem import AllChem
+
+chem = 8
+a, x = graphs[chem]
+Chem.MolFromSmiles(smiles_list[chem])
+# print(a)
+edges = []
+for i, row in enumerate(a):
+  for j, spot in enumerate(row):
+    if spot == 1:
+      edges.append((i,j))
+
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+DARK_GRAY = (90, 90, 90)
+ELEMENT_COLORS = {"C": (85, 85, 85), "N": (48, 80, 248),
+                  "O": (224, 32, 32), "S": (224, 192, 32)}
+OTHER_COLOR = (187, 136, 221)
+
+WIDTH, HEIGHT, MARGIN = 1000, 500, 60
+NODE_RADIUS = 14
+
+smiles = smiles_list[chem]
+
+
+def draw_text(surface, text, font, color, center):
+    image = font.render(text, True, color)
+    surface.blit(image, image.get_rect(center=center))
+
+
+mol = Chem.MolFromSmiles(smiles)
+AllChem.Compute2DCoords(mol)
+conf = mol.GetConformer()
+n = mol.GetNumAtoms()
+
+get_coord = []
+for i in range(n):
+    get_coord.append([conf.GetAtomPosition(i).x, -conf.GetAtomPosition(i).y])
+coords = np.array(get_coord)
+coords -= coords.min(axis=0)
+# scale = min((WIDTH - 2 * MARGIN) / coords[:, 0].max(),
+#             (HEIGHT - 2 * MARGIN) / coords[:, 1].max())
+coords *= 30
+coords += [(WIDTH - coords[:, 0].max()) / 2, (HEIGHT - coords[:, 1].max()) / 2]
+from collections import defaultdict
+nodes = defaultdict(list)
+for i, (x, y) in enumerate(coords):
+    nodes[i] = (int(x), int(y))
+
+colors = defaultdict(list)
+for atom in mol.GetAtoms():
+    colors[atom.GetIdx()] = ELEMENT_COLORS.get(atom.GetSymbol(), OTHER_COLOR)
+
+bonds = []
+for b in mol.GetBonds():
+    bonds.append((b.GetBeginAtomIdx(), b.GetEndAtomIdx(),
+          max(1, int(b.GetBondTypeAsDouble()))))
+
+
+
+def draw_bond(surface, start, end, order):
+    p, q = pygame.Vector2(start), pygame.Vector2(end)
+    direction = (q - p).normalize()
+    normal = pygame.Vector2(-direction.y, direction.x)
+    offsets = {1: [0], 2: [-4, 4], 3: [-7, 0, 7]}[order]
+    for o in offsets:
+        pygame.draw.line(surface, DARK_GRAY, p + normal * o, q + normal * o, 2)
+
+
+def draw_molecule(surface, font):
+    for start, end, order in bonds:
+        draw_bond(surface, nodes[start], nodes[end], order)
+    for name, position in nodes.items():
+        pygame.draw.circle(surface, colors[name], position, NODE_RADIUS)
+        pygame.draw.circle(surface, BLACK, position, NODE_RADIUS, 2)
+        draw_text(surface, str(name), font, WHITE, position)
+
+
+pygame.init()
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Molecule graph")
+font = pygame.font.SysFont(None, 20)
+clock = pygame.time.Clock()
+
+running = True
+while running:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+
+    screen.fill(WHITE)
+    draw_molecule(screen, font)
+    pygame.display.flip()
+    clock.tick(30)
+
+pygame.quit()

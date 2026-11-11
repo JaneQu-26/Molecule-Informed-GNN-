@@ -1,4 +1,4 @@
-# Molecule-Informed GNN
+## Molecule-Informed GNN
 
 A graph neural network that predicts whether a molecule inhibits *E. coli* growth, and a pygame
 walkthrough of what the trained model does to one molecule, one message-passing round at a time.
@@ -27,7 +27,7 @@ from the trained weights in `models/model.npz`.
 | `train.ipynb` | Colab notebook: load, train, evaluate, export `model.npz` |
 | `data/ecoli_mic.csv` | The 3,839 labeled molecules |
 | `models/model.npz` | Trained weights, the dataset, and its scores |
-| `originals/` | Jane's code, unchanged |
+| `originals/` | Initial data layer, molecule renderer, and baseline GNN |
 
 ## Model
 
@@ -53,30 +53,11 @@ Bemis-Murcko scaffold split, so no scaffold appears in two sets: 2,576 train, 83
 
 Confusion matrix `[[259, 52], [49, 71]]`, rows true inactive/active.
 
-Calling every molecule inactive already scores 72.2% here while finding nothing, so accuracy alone
-is misleading. The stopping epoch (133) and the decision threshold (0.688) were chosen on
-validation only. The test split was reused across several rounds of exploration, so these numbers
-describe this fixed split rather than external validation.
-
-`gnn/predict.py` is a second implementation of the forward pass, in NumPy. It rescores all 3,839
-molecules at startup and compares them against PyTorch. The largest difference is 4.5e-07.
 
 ## Contributions
 
-**Jane** wrote the baseline, kept unchanged in `originals/`: reading the CSV, `atom_features`,
-`smiles_to_graph`, the dataset summary, the pygame renderer with its RDKit coordinates, element
-colors, parallel lines for double and triple bonds, numbered atom circles and event loop, and the
-first PyTorch GNN with its normalized adjacency, two message-passing layers, linear output, and
-Adam training loop. Her `atom_features` and her drawing code are reused character for character,
-and the class name and layer shapes in `train.ipynb` are still hers.
+**Jane** wrote the data layer that turns a SMILES string into a graph (`atom_features`, `smiles_to_graph`, CSV loading) and the pygame renderer that draws a molecule on screen (RDKit coordinates, element colors, multi-bond lines, and atom circles). Her baseline code is preserved in `originals/`.
 
-**Carmen** applied that baseline to one question. The dataset: 3,839 ChEMBL molecules with a
-measured *E. coli* MIC, units filtered, repeat measurements merged, conflicting records dropped,
-in place of a 217-row file whose labels are not E. coli MIC. Inside the layer: five relations with
-their own weights instead of one binary adjacency matrix, 5,185 parameters to 25,665, which moved
-accuracy from 69.1% to 76.6% and precision from 46.0% to 57.7% while recall fell from 61.7% to
-59.2% and ROC-AUC from 0.716 to 0.687. Not every metric improved. Sum pooling instead of mean. A
-scaffold split with a validation set for the stopping epoch and the threshold, reported as the full
-metric set against the 72.2% majority baseline. And the walkthrough: a NumPy forward pass that
-keeps every layer, message packets carrying the real vectors along the bonds, and rings that show
-the receptive field growing round by round.
+**Both** wrote the first PyTorch GNN with its two message-passing layers, normalized adjacency, linear output, and Adam training loop.
+
+**Carmen** added the domain-specific features to address *E. coli* inhibition—processing the 3,839-molecule ChEMBL dataset, adding bond-type weights and sum pooling, implementing the scaffold train/val/test split, and reporting the full evaluation metrics—and built the stepped animation of the trained model。

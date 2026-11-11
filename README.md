@@ -8,13 +8,6 @@ pip install -r requirements.txt
 python run.py
 ```
 
-Space steps through the molecule, message round 1, message round 2, and the prediction. `R` resets,
-the arrows change molecule, clicking an atom moves the focus, `Esc` quits.
-
-The ring around each atom shows which atoms its vector has absorbed so far, so after two rounds the
-rings are the two-hop neighborhood the prediction is built from. Every number on screen is read
-from the trained weights in `models/model.npz`.
-
 ## Files
 
 | Path | What it is |
@@ -60,4 +53,4 @@ Confusion matrix `[[259, 52], [49, 71]]`, rows true inactive/active.
 
 **Both** wrote the first PyTorch GNN with its two message-passing layers, normalized adjacency, linear output, and Adam training loop.
 
-**Carmen** added the domain-specific features to address *E. coli* inhibition—processing the 3,839-molecule ChEMBL dataset, adding bond-type weights and sum pooling, implementing the scaffold train/val/test split, and reporting the full evaluation metrics—and built the stepped animation of the trained model。
+**Carmen** added the domain-specific features to address *E. coli* inhibition: processing the 3,839-molecule ChEMBL dataset, adding bond-type weights and sum pooling, implementing the scaffold train/val/test split, and reporting the full evaluation metrics. She also built the stepped animation of the trained model.
